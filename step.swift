@@ -57,9 +57,9 @@ task.waitUntilExit()
 
 // Copy `Cartfile.resolved`
 let fm = NSFileManager.defaultManager()
-let workingDirectoryURL = NSURL(string: fm.currentDirectoryPath)!.URLByAppendingPathComponent(env["working_dir"] ?? "")
+let workingDirectoryURL = NSURL(fileURLWithPath: fm.currentDirectoryPath, isDirectory: true)!.URLByAppendingPathComponent(env["working_dir"] ?? "")
 
 let cartfileURL = workingDirectoryURL.URLByAppendingPathComponent("Cartfile.resolved")
-let cartfileCopyURL = workingDirectoryURL.URLByAppendingPathComponent("Carthage/Cartfile.resolved")
+let cartfileCopyURL = workingDirectoryURL.URLByAppendingPathComponent("Carthage/bitrise-Cartfile.resolved")
 
 try! fm.copyItemAtURL(cartfileURL, toURL: cartfileCopyURL)
