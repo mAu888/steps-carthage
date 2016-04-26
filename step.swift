@@ -4,6 +4,7 @@ import Foundation
 
 typealias ArgsArray = Array<String>
 
+// MARK: - Functions
 func collectArgs(env: [String : String]) -> ArgsArray {
     var args = ArgsArray()
 
@@ -30,36 +31,76 @@ func collectArgs(env: [String : String]) -> ArgsArray {
     return args
 }
 
+/// Runs `carthage ${carthage_command}`. Returns true iff successful.
+func carthage(env: [String: String]) -> Bool {
+    let task = NSTask()
+
+    if let workingDir = env["working_dir"] where workingDir != "" {
+        task.currentDirectoryPath = workingDir
+    }
+
+    guard let carthageCommand = env["carthage_command"] else {
+        fatalError("no command to execute")
+    }
+
+    let command = "carthage \(carthageCommand)"
+    let args = " " + ( collectArgs(env).map { "\($0)" } ).joinWithSeparator(" ")
+
+    task.launchPath = "/bin/bash"
+    task.arguments = ["-c", command + args]
+
+    print("Running carthage command: \(task.arguments!.reduce("") { str, arg in str + "\(arg) " })")
+
+    // run the shell command
+    task.launch()
+    //
+    // // ensure to be finished before another command can run
+    task.waitUntilExit()
+
+    return task.terminationStatus == 0
+}
+
+func requiresCarthage(env: [String: String]) -> Bool {
+    guard let command = env["carthage_command"] where command != "update" else {
+        return true
+    }
+
+    let task = NSTask()
+
+    if let directory = env["working_dir"] {
+        task.currentDirectoryPath = directory
+    }
+
+    task.launchPath = "/usr/bin/diff"
+    task.arguments = ["Cartfile.resolved", "Carthage/bitrise-Cartfile.resolved"]
+
+    task.launch()
+    task.waitUntilExit()
+
+    return task.terminationStatus != 0
+}
+
+/// Copies the resolved Cartfile to Carthage. Returns true iff successful
+func copyCartfile(env: [String: String]) -> Bool {
+    let fm = NSFileManager.defaultManager()
+    let workingDirectoryURL = NSURL(fileURLWithPath: fm.currentDirectoryPath, isDirectory: true).URLByAppendingPathComponent(env["working_dir"] ?? "")
+
+    let cartfileURL = workingDirectoryURL.URLByAppendingPathComponent("Cartfile.resolved")
+    let cartfileCopyURL = workingDirectoryURL.URLByAppendingPathComponent("Carthage/bitrise-Cartfile.resolved")
+
+    return (try? fm.copyItemAtURL(cartfileURL, toURL: cartfileCopyURL)) != nil
+}
+
+// MARK: Step
+
 let env = NSProcessInfo.processInfo().environment
-let task = NSTask()
 
-if let workingDir = env["working_dir"] where workingDir != "" {
-    task.currentDirectoryPath = workingDir
+if requiresCarthage(env) {
+    guard carthage(env) else {
+        fatalError("Error while running carthage")
+    }
+
+    copyCartfile(env)
+} else {
+    print("Cached carthage content matches Cartfile.resolved, skipping Carthage.")
 }
-
-guard let carthageCommand = env["carthage_command"] else {
-    fatalError("no command to execute")
-}
-
-let command = "carthage \(carthageCommand)"
-var args = " " + ( collectArgs(env).map { "\($0)" } ).joinWithSeparator(" ")
-
-task.launchPath = "/bin/bash"
-task.arguments = ["-c", command + args]
-
-print("Running carthage command: \(task.arguments!.reduce("") { str, arg in str + "\(arg) " })")
-
-// run the shell command
-task.launch()
-//
-// // ensure to be finished before another command can run
-task.waitUntilExit()
-
-// Copy `Cartfile.resolved`
-let fm = NSFileManager.defaultManager()
-let workingDirectoryURL = NSURL(fileURLWithPath: fm.currentDirectoryPath, isDirectory: true).URLByAppendingPathComponent(env["working_dir"] ?? "")
-
-let cartfileURL = workingDirectoryURL.URLByAppendingPathComponent("Cartfile.resolved")
-let cartfileCopyURL = workingDirectoryURL.URLByAppendingPathComponent("Carthage/bitrise-Cartfile.resolved")
-
-try! fm.copyItemAtURL(cartfileURL, toURL: cartfileCopyURL)
