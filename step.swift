@@ -54,3 +54,12 @@ task.launch()
 //
 // // ensure to be finished before another command can run
 task.waitUntilExit()
+
+// Copy `Cartfile.resolved`
+let fm = NSFileManager.defaultManager()
+let workingDirectoryPath = fm.currentDirectoryPath.stringByAppendingPathComponent(env["working_dir"] ?? "")
+
+let cartfilePath = workingDirectoryPath.stringByAppendingPathComponent("Cartfile.resolved")
+let cartfileCopyPath = workingDirectoryPath.stringByAppendingPathComponent("Carthage/Cartfile.resolved")
+
+try! fm.copyItemAtPath(cartfilePath, toPath: cartfileCopyPath)
