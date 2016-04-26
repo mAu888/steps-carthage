@@ -62,4 +62,4 @@ let workingDirectoryURL = NSURL(string: fm.currentDirectoryPath)!.URLByAppending
 let cartfileURL = workingDirectoryURL.URLByAppendingPathComponent("Cartfile.resolved")
 let cartfileCopyURL = workingDirectoryURL.URLByAppendingPathComponent("Carthage/Cartfile.resolved")
 
-try! fm.copyItemAtURL(cartfilePath, toURL: cartfileCopyPath)
+try! fm.copyItemAtURL(cartfileURL, toURL: cartfileCopyURL)
