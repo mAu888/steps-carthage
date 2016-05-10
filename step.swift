@@ -83,9 +83,11 @@ func requiresCarthage(env: [String: String]) -> Bool {
 }
 
 /// Copies the resolved Cartfile to Carthage. Returns true iff successful
+@available(OSX, introduced=10.11)
 func copyCartfile(env: [String: String]) -> Bool {
     let fm = NSFileManager.defaultManager()
-    let workingDirectoryURL = NSURL(fileURLWithPath: fm.currentDirectoryPath, isDirectory: true).URLByAppendingPathComponent(env["working_dir"] ?? "")
+    let currentDirectoryPath = NSURL(fileURLWithPath: fm.currentDirectoryPath, isDirectory: true)
+    let workingDirectoryURL = NSURL(fileURLWithPath: (env["working_dir"] ?? "."), relativeToURL: currentDirectoryPath)
 
     let cartfileURL = workingDirectoryURL.URLByAppendingPathComponent("Cartfile.resolved")
     let cartfileCopyURL = workingDirectoryURL.URLByAppendingPathComponent("Carthage/bitrise-Cartfile.resolved")
@@ -102,16 +104,21 @@ func copyCartfile(env: [String: String]) -> Bool {
 
 // MARK: Step
 
-let env = NSProcessInfo.processInfo().environment
+if #available(OSX 10.11, *) {
+  let env = NSProcessInfo.processInfo().environment
 
-if requiresCarthage(env) {
-    guard carthage(env) else {
-        print("Error while running carthage.")
-        exit(1)
-    }
+  if requiresCarthage(env) {
+      guard carthage(env) else {
+          print("Error while running carthage.")
+          exit(1)
+      }
 
-    copyCartfile(env)
+      copyCartfile(env)
+  } else {
+      print("Cached carthage content matches Cartfile.resolved, skipping Carthage.")
+      exit(0)
+  }  
 } else {
-    print("Cached carthage content matches Cartfile.resolved, skipping Carthage.")
-    exit(0)
+  print("Carthage step requires at least OS X 10.11")
+  exit(1)
 }
