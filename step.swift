@@ -40,7 +40,8 @@ func carthage(env: [String: String]) -> Bool {
     }
 
     guard let carthageCommand = env["carthage_command"] else {
-        fatalError("no command to execute")
+        print("No carthage command to execute.")
+        exit(1)
     }
 
     let command = "carthage \(carthageCommand)"
@@ -73,7 +74,8 @@ func requiresCarthage(env: [String: String]) -> Bool {
 
     task.launchPath = "/usr/bin/diff"
     task.arguments = ["Cartfile.resolved", "Carthage/bitrise-Cartfile.resolved"]
-
+    task.standardError = nil
+    task.standardOutput = nil
     task.launch()
     task.waitUntilExit()
 
@@ -88,7 +90,14 @@ func copyCartfile(env: [String: String]) -> Bool {
     let cartfileURL = workingDirectoryURL.URLByAppendingPathComponent("Cartfile.resolved")
     let cartfileCopyURL = workingDirectoryURL.URLByAppendingPathComponent("Carthage/bitrise-Cartfile.resolved")
 
-    return (try? fm.copyItemAtURL(cartfileURL, toURL: cartfileCopyURL)) != nil
+    do {
+      try fm.copyItemAtURL(cartfileURL, toURL: cartfileCopyURL)
+      print("Copying Cartfile.resolved to '\(cartfileCopyURL.path!)'")
+      return true
+    } catch {
+      print("Error copying Cartfile.resolved to '\(cartfileCopyURL.path!)'")
+      return false
+    }
 }
 
 // MARK: Step
@@ -97,10 +106,12 @@ let env = NSProcessInfo.processInfo().environment
 
 if requiresCarthage(env) {
     guard carthage(env) else {
-        fatalError("Error while running carthage")
+        print("Error while running carthage.")
+        exit(1)
     }
 
     copyCartfile(env)
 } else {
     print("Cached carthage content matches Cartfile.resolved, skipping Carthage.")
+    exit(0)
 }
